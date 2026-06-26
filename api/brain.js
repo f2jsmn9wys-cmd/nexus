@@ -59,7 +59,7 @@ module.exports = async (req, res) => {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1200, system: sys, messages }),
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1200, system: sys, messages }),
     });
     const j = await r.json();
     const out = (j && j.content && j.content[0] && j.content[0].text) || '';
