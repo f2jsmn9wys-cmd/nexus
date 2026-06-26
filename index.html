@@ -940,7 +940,8 @@ async function enableNotifications(){
   try {
     const perm = await Notification.requestPermission();
     if (perm !== 'granted') { btn.textContent = '🔕 Erlaubnis verweigert'; return; }
-    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.register('sw.js');
+    const reg = await navigator.serviceWorker.ready; // wait until the SW is actually active
     const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
     await fetch('/api/push-subscribe', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ subscription: sub.toJSON() }) });
     btn.textContent = '✅ Erinnerungen aktiv';
