@@ -46,6 +46,32 @@ body::before{
   background:linear-gradient(95deg,var(--gold),#fff7e6 40%,var(--violet)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 .brand .sub{ font-family:var(--mono); font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:var(--muted-2); }
 .topClock{ font-family:var(--mono); font-size:12px; color:var(--muted); letter-spacing:.05em; }
+.topbarRight{ display:flex; align-items:center; gap:14px; }
+.notifsBtn{ font-size:11px; padding:8px 14px; white-space:nowrap; }
+@media (max-width:640px){
+  .topbarRight{ gap:8px; }
+  .notifsBtn{ padding:8px 10px; }
+  .notifsLabel{ display:none; }
+  .topClock{ font-size:10px; }
+}
+
+/* ---- Mobile bottom nav: app-like, fixed, replaces the top pill tabs on small screens ---- */
+.bottomNav{ display:none; }
+@media (max-width:760px){
+  .tabs{ display:none; }
+  .bottomNav{
+    display:flex; position:fixed; left:0; right:0; bottom:0; z-index:500;
+    background:rgba(7,7,10,.88); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border-top:1px solid var(--border); padding:6px max(8px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-right));
+  }
+  .bottomNav button{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; background:transparent; border:0;
+    color:var(--muted-2); font-family:var(--mono); font-size:9.5px; letter-spacing:.03em; text-transform:uppercase; padding:6px 2px; border-radius:12px;
+  }
+  .bnIco{ font-size:19px; line-height:1; }
+  .bottomNav button.active{ color:var(--gold); background:var(--gold-soft); }
+  .shell{ padding-bottom:90px; }
+}
 
 /* ---- tab nav ---- */
 .tabs{ display:flex; gap:6px; padding:4px; background:var(--surface); border:1px solid var(--border); border-radius:999px; width:fit-content; margin:8px 0 36px; }
@@ -207,8 +233,8 @@ body::before{
 <div class="shell">
   <div class="topbar">
     <div class="brand"><span class="mark">Nexus</span><span class="sub">Personal Intelligence</span></div>
-    <div style="display:flex; align-items:center; gap:14px">
-      <button class="btn btn-ghost" id="enableNotifsBtn" style="font-size:11px; padding:8px 14px">🔔 Erinnerungen aktivieren</button>
+    <div class="topbarRight">
+      <button class="btn btn-ghost notifsBtn" id="enableNotifsBtn">🔔 <span class="notifsLabel">Erinnerungen aktivieren</span></button>
       <div class="topClock" id="clock"></div>
     </div>
   </div>
@@ -219,6 +245,15 @@ body::before{
     <button data-tab="streaks">Streaks</button>
     <button data-tab="calendar">Calendar</button>
     <button data-tab="focus">Focus</button>
+  </nav>
+
+  <!-- Mobile bottom nav — same tabs, app-like fixed bar -->
+  <nav class="bottomNav" id="bottomNav">
+    <button data-tab="brain" class="active"><span class="bnIco">🧠</span><span>Brain</span></button>
+    <button data-tab="todos"><span class="bnIco">✅</span><span>Todos</span></button>
+    <button data-tab="streaks"><span class="bnIco">🔥</span><span>Streaks</span></button>
+    <button data-tab="calendar"><span class="bnIco">📅</span><span>Calendar</span></button>
+    <button data-tab="focus"><span class="bnIco">⏱️</span><span>Focus</span></button>
   </nav>
 
   <!-- ============ SECOND BRAIN ============ -->
@@ -359,14 +394,15 @@ function uid(){ return Date.now().toString(36) + Math.random().toString(36).slic
 function todayKey(d){ d = d || new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-document.querySelectorAll('.tabs button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b === btn));
-    const tab = btn.dataset.tab;
-    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + tab));
-    if (tab === 'brain') setTimeout(renderBrainGraph, 30);
-    if (tab === 'calendar') renderCalendar();
-  });
+function switchTab(tab){
+  document.querySelectorAll('.tabs button, .bottomNav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + tab));
+  if (tab === 'brain') setTimeout(renderBrainGraph, 30);
+  if (tab === 'calendar') renderCalendar();
+  if (tab === 'focus') renderFocusStats();
+}
+document.querySelectorAll('.tabs button, .bottomNav button').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
 function tickClock(){
@@ -915,9 +951,6 @@ function renderFocusStats(){
     : '<p class="todoEmpty">Noch keine Sessions.</p>';
 }
 
-document.querySelectorAll('.tabs button').forEach(btn => {
-  if (btn.dataset.tab === 'focus') btn.addEventListener('click', renderFocusStats);
-});
 focusSetMinutes(25);
 renderFocusStats();
 
