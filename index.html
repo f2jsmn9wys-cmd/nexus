@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="mobile-web-app-capable" content="yes" />
 <link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon-180.png" />
+<link rel="icon" href="icon-192.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -71,6 +73,7 @@ body::before{
   .bnIco{ font-size:19px; line-height:1; }
   .bottomNav button.active{ color:var(--gold); background:var(--gold-soft); }
   .shell{ padding-bottom:90px; }
+  #csBtn{ bottom:calc(76px + env(safe-area-inset-bottom)) !important; right:14px !important; }
 }
 
 /* ---- tab nav ---- */
