@@ -59,8 +59,8 @@ body::before{
 
 /* ---- Mobile bottom nav: app-like, fixed, replaces the top pill tabs on small screens ---- */
 .bottomNav{ display:none; }
-@media (max-width:760px){
-  .tabs{ display:none; }
+@media (max-width:900px){
+  .tabs{ display:none !important; }
   .bottomNav{
     display:flex; position:fixed; left:0; right:0; bottom:0; z-index:500;
     background:rgba(7,7,10,.88); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
@@ -108,6 +108,23 @@ body::before{
 /* ============================================================
  * TODOS — priority-sorted tiles
  * ============================================================ */
+/* ---- futuristic todo progress bar ---- */
+.prog3000{ display:flex; align-items:center; gap:18px; margin-bottom:26px; padding:18px 22px; border-radius:18px;
+  background:linear-gradient(135deg,rgba(139,124,255,.07),rgba(205,168,106,.05)); border:1px solid var(--border-2); position:relative; overflow:hidden; }
+.prog3000::before{ content:''; position:absolute; inset:0; pointer-events:none; opacity:.5;
+  background-image:linear-gradient(90deg,transparent 0 24px,rgba(255,255,255,.025) 24px 25px); background-size:25px 100%; }
+.prog3000Track{ position:relative; flex:1; height:14px; border-radius:999px; background:rgba(255,255,255,.05); border:1px solid var(--border-2); overflow:hidden; }
+.prog3000Fill{ position:relative; height:100%; width:0%; border-radius:999px; transition:width .6s var(--ease);
+  background:linear-gradient(90deg,#8b7cff,#cda86a 60%,#fff1d0); box-shadow:0 0 16px rgba(205,168,106,.55),0 0 4px rgba(139,124,255,.6); }
+.prog3000Fill::after{ content:''; position:absolute; inset:0; background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.35) 0 2px,transparent 2px 10px); mix-blend-mode:overlay; }
+.prog3000Scan{ position:absolute; top:0; bottom:0; width:40px; background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
+  filter:blur(2px); animation:prog3000Sweep 2.6s linear infinite; }
+@keyframes prog3000Sweep{ 0%{ left:-10%; } 100%{ left:110%; } }
+.prog3000Label{ display:flex; flex-direction:column; align-items:flex-end; min-width:88px; }
+.prog3000Pct{ font-family:var(--mono); font-size:22px; font-weight:600; background:linear-gradient(95deg,var(--gold),#fff1d0,var(--violet)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+.prog3000Sub{ font-family:var(--mono); font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted-2); margin-top:2px; }
+@media (prefers-reduced-motion:reduce){ .prog3000Scan{ animation:none; display:none; } }
+
 .todoComposer{ display:grid; grid-template-columns:1fr 160px auto; gap:10px; margin-bottom:28px; }
 @media (max-width:720px){ .todoComposer{ grid-template-columns:1fr; } }
 .todoCols{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
@@ -299,6 +316,10 @@ body::before{
   <div class="view" id="view-todos">
     <h2 class="sectionHead">Today's Priorities</h2>
     <p class="sectionSub">Was zählt heute wirklich</p>
+    <div class="prog3000">
+      <div class="prog3000Track"><div class="prog3000Fill" id="todoProgFill"><div class="prog3000Scan"></div></div></div>
+      <div class="prog3000Label"><span class="prog3000Pct" id="todoProgPct">0%</span><span class="prog3000Sub" id="todoProgSub">0 / 0 erledigt</span></div>
+    </div>
     <div class="todoComposer">
       <input class="input" id="todoInput" placeholder="Was steht an?" />
       <select class="select" id="todoPriority">
@@ -440,6 +461,12 @@ function renderTodos(){
       + '<div class="todoColHead"><span class="todoDot ' + c.pri + '"></span><span class="todoColTitle">' + c.label + '</span><span class="todoColCount">' + items.length + '</span></div>'
       + rows + '</div>';
   }).join('');
+
+  const total = todos.length, done = todos.filter(t => t.done).length;
+  const pct = total ? Math.round((done/total)*100) : 0;
+  document.getElementById('todoProgFill').style.width = pct + '%';
+  document.getElementById('todoProgPct').textContent = pct + '%';
+  document.getElementById('todoProgSub').textContent = done + ' / ' + total + ' erledigt';
 }
 
 document.getElementById('todoAddBtn').addEventListener('click', () => {
