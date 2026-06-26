@@ -47,3 +47,23 @@ end $$;
 
 -- Done. Set SUPABASE_URL + SUPABASE_ANON_KEY as Vercel env vars (Settings → API
 -- gives you both), redeploy, and every device syncs automatically.
+
+-- ============================================================
+-- PUSH NOTIFICATIONS (Nexus) — run this too if you want reminders.
+-- ============================================================
+create table if not exists push_subscriptions (
+  endpoint   text primary key,
+  subscription jsonb not null,
+  created_at timestamptz default now()
+);
+alter table push_subscriptions enable row level security;
+drop policy if exists "push_subscriptions rw" on push_subscriptions;
+create policy "push_subscriptions rw" on push_subscriptions for all using (true) with check (true);
+
+create table if not exists notified_events (
+  signature  text primary key,
+  notified_at timestamptz default now()
+);
+alter table notified_events enable row level security;
+drop policy if exists "notified_events rw" on notified_events;
+create policy "notified_events rw" on notified_events for all using (true) with check (true);

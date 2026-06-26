@@ -171,13 +171,46 @@ body::before{
 .icsBar{ display:flex; gap:10px; align-items:center; margin-top:24px; padding-top:20px; border-top:1px solid var(--border); }
 .icsBar .input{ flex:1; }
 .icsStatus{ font-family:var(--mono); font-size:11px; color:var(--muted-2); }
+
+/* ---- Second Brain chat ---- */
+.brainChatFeed{ display:flex; flex-direction:column; gap:10px; max-height:320px; overflow-y:auto; margin-bottom:14px; }
+.bcMsg{ max-width:80%; padding:10px 14px; border-radius:14px; font-size:14px; line-height:1.5; }
+.bcMsg.user{ align-self:flex-end; background:var(--surface-2); border:1px solid var(--border-2); }
+.bcMsg.ai{ align-self:flex-start; background:var(--gold-soft); border:1px solid var(--gold-line); }
+.bcMsg.ai .bcTag{ display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold); margin-bottom:4px; }
+.brainChatRow{ display:flex; gap:10px; }
+.brainChatRow .input{ flex:1; }
+.brainChatHint{ font-family:var(--mono); font-size:11px; color:var(--muted-2); margin:10px 0 0; min-height:14px; }
+
+/* ---- Focus / Deep Work timer ---- */
+.focusLayout{ display:grid; grid-template-columns:1fr 320px; gap:20px; align-items:start; }
+@media (max-width:880px){ .focusLayout{ grid-template-columns:1fr; } }
+.focusCard{ display:flex; flex-direction:column; align-items:center; padding:36px 24px; }
+.focusRing{ position:relative; width:220px; height:220px; }
+.focusRingSvg{ width:100%; height:100%; transform:rotate(-90deg); }
+.focusRingTrack{ fill:none; stroke:rgba(255,255,255,.06); stroke-width:10; }
+.focusRingFill{ fill:none; stroke:url(#focusGrad); stroke-width:10; stroke-linecap:round; stroke-dasharray:553; stroke-dashoffset:0; transition:stroke-dashoffset 1s linear; }
+.focusTime{ position:absolute; inset:0; display:grid; place-items:center; font-family:var(--mono); font-size:38px; font-weight:500; }
+.focusPresets{ display:flex; gap:8px; margin-top:28px; }
+.focusPreset{ font-family:var(--mono); font-size:12px; background:var(--surface-2); border:1px solid var(--border-2); color:var(--fg);
+  border-radius:10px; padding:9px 16px; cursor:pointer; transition:.2s; }
+.focusPreset:hover, .focusPreset.active{ border-color:var(--gold-line); color:var(--gold); }
+.focusCustomRow{ display:flex; gap:8px; margin-top:14px; width:100%; max-width:320px; }
+.focusControls{ display:flex; gap:10px; margin-top:20px; }
+.focusStat{ display:flex; align-items:baseline; gap:8px; margin-bottom:14px; }
+.focusStatNum{ font-family:var(--mono); font-size:26px; }
+.focusStatLabel{ font-size:12px; color:var(--muted); }
+.focusHistRow{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); padding:6px 0; border-bottom:1px solid var(--border); }
 </style>
 </head>
 <body>
 <div class="shell">
   <div class="topbar">
     <div class="brand"><span class="mark">Nexus</span><span class="sub">Personal Intelligence</span></div>
-    <div class="topClock" id="clock"></div>
+    <div style="display:flex; align-items:center; gap:14px">
+      <button class="btn btn-ghost" id="enableNotifsBtn" style="font-size:11px; padding:8px 14px">🔔 Erinnerungen aktivieren</button>
+      <div class="topClock" id="clock"></div>
+    </div>
   </div>
 
   <nav class="tabs">
@@ -185,6 +218,7 @@ body::before{
     <button data-tab="todos">Todos</button>
     <button data-tab="streaks">Streaks</button>
     <button data-tab="calendar">Calendar</button>
+    <button data-tab="focus">Focus</button>
   </nav>
 
   <!-- ============ SECOND BRAIN ============ -->
@@ -209,6 +243,17 @@ body::before{
           <div class="brainTags" id="brainDetailTags"></div>
         </div>
       </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <p class="cardTitle">Use your Second Brain</p>
+      <p style="font-size:13px; color:var(--muted); margin:-8px 0 16px">Erzähl ihm einfach, was dir durch den Kopf geht — er legt es als Notiz ab. Frag ihn etwas — er antwortet anhand deiner Notizen.</p>
+      <div class="brainChatFeed" id="brainChatFeed"></div>
+      <div class="brainChatRow">
+        <input class="input" id="brainChatInput" placeholder="Sag ihm was, oder frag ihn was…" autocomplete="off" />
+        <button class="btn btn-gold" id="brainChatSend">Senden</button>
+      </div>
+      <p class="brainChatHint" id="brainChatHint"></p>
     </div>
   </div>
 
@@ -258,6 +303,48 @@ body::before{
         <button class="btn btn-ghost" id="icsConnectBtn">Verbinden</button>
       </div>
       <div class="icsStatus" id="icsStatus">Nicht verbunden — füge oben deinen Apple-Kalender-Freigabelink ein.</div>
+    </div>
+  </div>
+
+  <!-- ============ FOCUS / DEEP WORK ============ -->
+  <div class="view" id="view-focus">
+    <h2 class="sectionHead">Deep Work</h2>
+    <p class="sectionSub">Eine Sache. Volle Konzentration.</p>
+    <div class="focusLayout">
+      <div class="card focusCard">
+        <div class="focusRing">
+          <svg viewBox="0 0 200 200" class="focusRingSvg">
+            <defs><linearGradient id="focusGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#cda86a" /><stop offset="100%" stop-color="#8b7cff" />
+            </linearGradient></defs>
+            <circle cx="100" cy="100" r="88" class="focusRingTrack" />
+            <circle cx="100" cy="100" r="88" class="focusRingFill" id="focusRingFill" />
+          </svg>
+          <div class="focusTime" id="focusTimeLabel">25:00</div>
+        </div>
+        <div class="focusPresets" id="focusPresets">
+          <button class="focusPreset" data-min="15">15m</button>
+          <button class="focusPreset" data-min="25">25m</button>
+          <button class="focusPreset" data-min="50">50m</button>
+          <button class="focusPreset" data-min="90">90m</button>
+        </div>
+        <div class="focusCustomRow">
+          <input class="input" id="focusCustomInput" type="number" min="1" max="240" placeholder="eigene Minuten" />
+          <button class="btn btn-ghost" id="focusCustomSet">Setzen</button>
+        </div>
+        <div class="focusControls">
+          <button class="btn btn-gold" id="focusStartBtn">Start</button>
+          <button class="btn btn-ghost" id="focusPauseBtn" style="display:none">Pause</button>
+          <button class="btn btn-ghost" id="focusResetBtn">Reset</button>
+        </div>
+      </div>
+      <div class="card">
+        <p class="cardTitle">Heute</p>
+        <div class="focusStat"><span class="focusStatNum" id="focusTodayMin">0</span><span class="focusStatLabel">Minuten Deep Work</span></div>
+        <div class="focusStat"><span class="focusStatNum" id="focusTodaySessions">0</span><span class="focusStatLabel">Sessions abgeschlossen</span></div>
+        <p class="cardTitle" style="margin-top:24px">Verlauf</p>
+        <div id="focusHistory"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -622,7 +709,7 @@ function renderCalendar(){
     const k = todayKey(d);
     const local = events[k] || [];
     const ics = icsEvents[k] || [];
-    const evHtml = local.map(e => '<div class="calEvent">' + esc(e.title) + '</div>').join('')
+    const evHtml = local.map(e => '<div class="calEvent">' + (e.time ? '<b>' + esc(e.time) + '</b> ' : '') + esc(e.title) + '</div>').join('')
       + ics.map(e => '<div class="calEvent gold">' + esc(e.title) + '</div>').join('');
     return '<div class="calCell' + (k === tk ? ' today' : '') + '" data-act="cal-cell" data-date="' + k + '">'
       + '<div class="calDateNum">' + d.getDate() + '</div>' + evHtml + '</div>';
@@ -677,6 +764,191 @@ document.getElementById('icsConnectBtn').addEventListener('click', async () => {
 });
 
 renderCalendar();
+
+/* ============================================================
+ * SECOND BRAIN CHAT — talk to it; it files notes or answers from them
+ * ============================================================ */
+const BRAINCHAT_KEY = 'nexus_brainchat_v1';
+function getBrainChat(){ return lsGet(BRAINCHAT_KEY, []); }
+function setBrainChat(list){ lsSet(BRAINCHAT_KEY, list); renderBrainChat(); }
+
+function renderBrainChat(){
+  const feed = document.getElementById('brainChatFeed');
+  feed.innerHTML = getBrainChat().map(m => {
+    if (m.role === 'user') return '<div class="bcMsg user">' + esc(m.text) + '</div>';
+    return '<div class="bcMsg ai"><span class="bcTag">' + (m.action === 'save_note' ? '📝 Notiz gespeichert: ' + esc(m.title || '') : '🧠 Second Brain') + '</span>' + esc(m.text) + '</div>';
+  }).join('');
+  feed.scrollTop = feed.scrollHeight;
+}
+
+async function sendBrainChat(){
+  const inp = document.getElementById('brainChatInput');
+  const text = inp.value.trim();
+  if (!text) return;
+  const hint = document.getElementById('brainChatHint');
+  const chat = getBrainChat();
+  chat.push({ role:'user', text });
+  setBrainChat(chat);
+  inp.value = '';
+  hint.textContent = 'denkt nach…';
+
+  const notes = getNotes().map(n => ({ title: n.title, body: n.body, tags: n.tags }));
+  const todosForAi = getTodos().filter(t => !t.done).map(t => ({ text: t.text, priority: t.priority, done: t.done }));
+  const history = chat.slice(-10).map(m => ({ role: m.role, text: m.text }));
+  try {
+    const r = await fetch('/api/brain', {
+      method:'POST', headers:{ 'content-type':'application/json' },
+      body: JSON.stringify({ message: text, notes, todos: todosForAi, history }),
+    });
+    const j = await r.json();
+    hint.textContent = '';
+    if (!j.ok) {
+      hint.textContent = j.error === 'not_configured'
+        ? '⚠️ ANTHROPIC_API_KEY fehlt noch als Vercel-Env-Var.'
+        : '⚠️ Fehler: ' + (j.error || 'unbekannt');
+      return;
+    }
+    if (j.action === 'save_note' && j.title) {
+      const all = getNotes();
+      const stage = document.getElementById('brainStage').getBoundingClientRect();
+      all.push({
+        id: uid(), title: j.title, body: j.body || text, tags: extractTags(j.title, j.body || text),
+        x: (stage.width||600)/2 + (Math.random()-0.5)*60, y: (stage.height||500)/2 + (Math.random()-0.5)*60, vx:0, vy:0,
+      });
+      setNotes(all);
+      rebuildBrainSvg();
+    }
+    if (j.action === 'schedule_todos' && Array.isArray(j.items) && j.items.length) {
+      const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+      const k = todayKey(tomorrow);
+      const events = getEvents();
+      events[k] = events[k] || [];
+      j.items.forEach(it => { if (it.text && it.time) events[k].push({ title: it.text, time: it.time }); });
+      events[k].sort((a,b) => (a.time||'').localeCompare(b.time||''));
+      setEvents(events);
+      renderCalendar();
+    }
+    const updated = getBrainChat();
+    updated.push({ role:'ai', text: j.reply || '', action: j.action, title: j.title });
+    setBrainChat(updated);
+  } catch (e) {
+    hint.textContent = '⚠️ Verbindungsfehler: ' + e.message;
+  }
+}
+document.getElementById('brainChatSend').addEventListener('click', sendBrainChat);
+document.getElementById('brainChatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendBrainChat(); });
+renderBrainChat();
+
+/* ============================================================
+ * FOCUS / DEEP WORK TIMER
+ * ============================================================ */
+const FOCUS_KEY = 'nexus_focus_sessions_v1';
+const FOCUS_CIRC = 2 * Math.PI * 88;
+let focusTotalSec = 25*60, focusRemainingSec = 25*60, focusRunning = false, focusIntervalId = null;
+
+function focusFormat(sec){ const m = Math.floor(sec/60), s = sec%60; return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0'); }
+function updateFocusRing(){
+  document.getElementById('focusTimeLabel').textContent = focusFormat(focusRemainingSec);
+  const frac = focusTotalSec > 0 ? focusRemainingSec / focusTotalSec : 0;
+  document.getElementById('focusRingFill').style.strokeDashoffset = String(FOCUS_CIRC * (1 - frac));
+}
+function focusSetMinutes(min){
+  if (focusRunning) return;
+  focusTotalSec = Math.max(1, Math.round(min)) * 60; focusRemainingSec = focusTotalSec;
+  document.querySelectorAll('.focusPreset').forEach(b => b.classList.toggle('active', Number(b.dataset.min) === min));
+  updateFocusRing();
+}
+document.querySelectorAll('.focusPreset').forEach(b => b.addEventListener('click', () => focusSetMinutes(Number(b.dataset.min))));
+document.getElementById('focusCustomSet').addEventListener('click', () => {
+  const v = Number(document.getElementById('focusCustomInput').value);
+  if (v > 0) focusSetMinutes(v);
+});
+
+function focusLogSession(minutes){
+  const log = lsGet(FOCUS_KEY, []);
+  log.push({ date: todayKey(), minutes });
+  lsSet(FOCUS_KEY, log);
+  renderFocusStats();
+}
+function focusComplete(){
+  clearInterval(focusIntervalId); focusIntervalId = null; focusRunning = false;
+  focusLogSession(Math.round(focusTotalSec/60));
+  document.getElementById('focusStartBtn').style.display = '';
+  document.getElementById('focusPauseBtn').style.display = 'none';
+  focusRemainingSec = focusTotalSec; updateFocusRing();
+  try { if (window.Notification && Notification.permission === 'granted') new Notification('Deep Work Session beendet 🎯', { body: Math.round(focusTotalSec/60) + ' Minuten geschafft.' }); } catch(e){}
+}
+document.getElementById('focusStartBtn').addEventListener('click', () => {
+  if (window.Notification && Notification.permission === 'default') { try { Notification.requestPermission(); } catch(e){} }
+  focusRunning = true;
+  document.getElementById('focusStartBtn').style.display = 'none';
+  document.getElementById('focusPauseBtn').style.display = '';
+  focusIntervalId = setInterval(() => {
+    focusRemainingSec--;
+    updateFocusRing();
+    if (focusRemainingSec <= 0) focusComplete();
+  }, 1000);
+});
+document.getElementById('focusPauseBtn').addEventListener('click', () => {
+  clearInterval(focusIntervalId); focusIntervalId = null; focusRunning = false;
+  document.getElementById('focusStartBtn').style.display = '';
+  document.getElementById('focusPauseBtn').style.display = 'none';
+});
+document.getElementById('focusResetBtn').addEventListener('click', () => {
+  clearInterval(focusIntervalId); focusIntervalId = null; focusRunning = false;
+  focusRemainingSec = focusTotalSec; updateFocusRing();
+  document.getElementById('focusStartBtn').style.display = '';
+  document.getElementById('focusPauseBtn').style.display = 'none';
+});
+
+function renderFocusStats(){
+  const log = lsGet(FOCUS_KEY, []);
+  const tk = todayKey();
+  const todays = log.filter(s => s.date === tk);
+  document.getElementById('focusTodayMin').textContent = todays.reduce((a,s)=>a+s.minutes,0);
+  document.getElementById('focusTodaySessions').textContent = todays.length;
+  const byDate = {};
+  log.forEach(s => { byDate[s.date] = (byDate[s.date]||0) + s.minutes; });
+  const dates = Object.keys(byDate).sort().reverse().slice(0,10);
+  document.getElementById('focusHistory').innerHTML = dates.length
+    ? dates.map(d => '<div class="focusHistRow"><span>' + d + '</span><span>' + byDate[d] + ' min</span></div>').join('')
+    : '<p class="todoEmpty">Noch keine Sessions.</p>';
+}
+
+document.querySelectorAll('.tabs button').forEach(btn => {
+  if (btn.dataset.tab === 'focus') btn.addEventListener('click', renderFocusStats);
+});
+focusSetMinutes(25);
+renderFocusStats();
+
+/* ============================================================
+ * PUSH NOTIFICATIONS — service worker + subscribe, triggered by an
+ * external cron (cron-job.org) hitting /api/push-check once a minute.
+ * ============================================================ */
+const VAPID_PUBLIC_KEY = 'BGFUxK5972SU1-H0FXFd6y04v1IXIiJTSTvHN9sCDUnRHJnDOqRwWi1L6zvtoRlqfqcssgCQTCcG_JDGXA63xpA';
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+async function enableNotifications(){
+  const btn = document.getElementById('enableNotifsBtn');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) { alert('Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.'); return; }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { btn.textContent = '🔕 Erlaubnis verweigert'; return; }
+    const reg = await navigator.serviceWorker.register('sw.js');
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+    await fetch('/api/push-subscribe', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ subscription: sub.toJSON() }) });
+    btn.textContent = '✅ Erinnerungen aktiv';
+  } catch (e) {
+    btn.textContent = '⚠️ Fehler: ' + e.message;
+  }
+}
+document.getElementById('enableNotifsBtn').addEventListener('click', enableNotifications);
 </script>
 
 <!-- Whole-device cloud sync, same engine as the Patron dashboard: paste your
