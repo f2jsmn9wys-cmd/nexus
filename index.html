@@ -247,9 +247,38 @@ body::before{
 .focusStatNum{ font-family:var(--mono); font-size:26px; }
 .focusStatLabel{ font-size:12px; color:var(--muted); }
 .focusHistRow{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); padding:6px 0; border-bottom:1px solid var(--border); }
+
+/* ---- lock screen ---- */
+#lockOverlay{ position:fixed; inset:0; z-index:99999; display:none; align-items:center; justify-content:center;
+  background:rgba(5,5,8,.94); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
+.lockCard{ width:min(320px,86vw); text-align:center; }
+.lockMark{ font-family:var(--serif); font-style:italic; font-weight:500; font-size:32px; margin-bottom:6px;
+  background:linear-gradient(95deg,var(--gold),#fff7e6 40%,var(--violet)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+.lockSub{ font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted-2); margin-bottom:30px; }
+.lockDots{ display:flex; gap:14px; justify-content:center; margin-bottom:26px; }
+.lockDot{ width:14px; height:14px; border-radius:50%; border:1px solid var(--border-2); background:transparent; transition:.2s; }
+.lockDot.filled{ background:linear-gradient(95deg,var(--gold),var(--violet)); border-color:transparent; box-shadow:0 0 10px rgba(205,168,106,.6); }
+.lockPad{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.lockKey{ aspect-ratio:1; border-radius:50%; border:1px solid var(--border-2); background:var(--surface-2); color:var(--fg);
+  font-family:var(--mono); font-size:20px; cursor:pointer; transition:.15s var(--ease); }
+.lockKey:hover{ border-color:var(--gold-line); }
+.lockKey:active{ transform:scale(.92); }
+.lockKey.wide{ font-size:13px; }
+.lockError{ color:var(--bad); font-size:12px; margin-top:16px; min-height:16px; font-family:var(--mono); }
+.lockHint{ color:var(--muted-2); font-size:11px; margin-top:14px; }
 </style>
 </head>
 <body>
+<div id="lockOverlay">
+  <div class="lockCard">
+    <div class="lockMark">Nexus</div>
+    <div class="lockSub" id="lockSubLabel">Code eingeben</div>
+    <div class="lockDots" id="lockDots"></div>
+    <div class="lockPad" id="lockPad"></div>
+    <div class="lockError" id="lockError"></div>
+    <div class="lockHint" id="lockHint"></div>
+  </div>
+</div>
 <div class="shell">
   <div class="topbar">
     <div class="brand"><span class="mark">Nexus</span><span class="sub">Personal Intelligence</span></div>
@@ -1022,5 +1051,103 @@ document.getElementById('enableNotifsBtn').addEventListener('click', enableNotif
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="db.js"></script>
 <script src="cloud-sync.js"></script>
+
+<!-- ============================================================
+ * APP LOCK — PIN code, valid 14 days per device, hash shared via
+ * Supabase so the same code works on every synced device.
+ * ============================================================ -->
+<script>
+(function(){
+  const PIN_LEN = 6;
+  let pin = '', mode = 'checking', storedHash = null, cfgUrl = '', cfgKey = '', firstPin = null;
+
+  async function sha256Hex(str){
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  function renderDots(){
+    document.getElementById('lockDots').innerHTML = Array.from({length:PIN_LEN}).map((_,i)=>
+      '<div class="lockDot' + (i < pin.length ? ' filled' : '') + '"></div>').join('');
+  }
+  function renderPad(){
+    const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+    document.getElementById('lockPad').innerHTML = keys.map(k => {
+      if (k === '') return '<div></div>';
+      return '<button type="button" class="lockKey' + (k === '⌫' ? ' wide' : '') + '" data-key="' + k + '">' + k + '</button>';
+    }).join('');
+  }
+  async function getAuthRow(){
+    if (!cfgUrl || !cfgKey) return null;
+    try {
+      const r = await fetch(cfgUrl + '/rest/v1/app_state?key=eq.nexus-auth&select=data', { headers:{ apikey:cfgKey, Authorization:'Bearer '+cfgKey } });
+      const j = await r.json();
+      return (j && j[0] && j[0].data) || null;
+    } catch(e){ return null; }
+  }
+  async function saveAuthRow(data){
+    if (!cfgUrl || !cfgKey) return;
+    try {
+      await fetch(cfgUrl + '/rest/v1/app_state', { method:'POST', headers:{ apikey:cfgKey, Authorization:'Bearer '+cfgKey, 'content-type':'application/json', Prefer:'resolution=merge-duplicates' }, body: JSON.stringify({ key:'nexus-auth', data, updated_at:new Date().toISOString() }) });
+    } catch(e){}
+  }
+  function unlockFor14Days(){
+    localStorage.setItem('nexus_unlock_until', String(Date.now() + 14*86400000));
+    document.getElementById('lockOverlay').style.display = 'none';
+  }
+  async function handleSubmit(){
+    const hash = await sha256Hex(pin);
+    if (mode === 'set'){
+      if (!firstPin){
+        firstPin = hash; pin = ''; renderDots();
+        document.getElementById('lockSubLabel').textContent = 'Code wiederholen';
+        return;
+      }
+      if (hash !== firstPin){
+        document.getElementById('lockError').textContent = 'Codes stimmen nicht überein — nochmal.';
+        firstPin = null; pin = ''; renderDots();
+        document.getElementById('lockSubLabel').textContent = 'Code festlegen (6 Ziffern)';
+        return;
+      }
+      storedHash = hash;
+      await saveAuthRow({ pin_hash: hash });
+      unlockFor14Days();
+    } else if (mode === 'enter'){
+      if (hash === storedHash){ unlockFor14Days(); }
+      else { document.getElementById('lockError').textContent = 'Falscher Code.'; pin = ''; renderDots(); }
+    }
+  }
+  function onKey(k){
+    document.getElementById('lockError').textContent = '';
+    if (k === '⌫'){ pin = pin.slice(0,-1); renderDots(); return; }
+    if (pin.length >= PIN_LEN) return;
+    pin += k; renderDots();
+    if (pin.length === PIN_LEN) handleSubmit();
+  }
+  document.getElementById('lockPad').addEventListener('click', e => {
+    const btn = e.target.closest('.lockKey'); if (btn) onKey(btn.dataset.key);
+  });
+
+  async function initLock(){
+    const until = Number(localStorage.getItem('nexus_unlock_until') || 0);
+    if (Date.now() < until) return; // already unlocked recently on this device
+
+    document.getElementById('lockOverlay').style.display = 'flex';
+    renderPad(); renderDots();
+
+    try { const cfg = await fetch('/api/config').then(r=>r.json()); cfgUrl = cfg.url || ''; cfgKey = cfg.key || ''; } catch(e){}
+
+    const row = await getAuthRow();
+    if (row && row.pin_hash){
+      storedHash = row.pin_hash; mode = 'enter';
+      document.getElementById('lockSubLabel').textContent = 'Code eingeben';
+    } else {
+      mode = 'set';
+      document.getElementById('lockSubLabel').textContent = 'Code festlegen (6 Ziffern)';
+      document.getElementById('lockHint').textContent = 'Gilt für alle Geräte — danach alle 14 Tage erneut nötig.';
+    }
+  }
+  initLock();
+})();
+</script>
 </body>
 </html>
