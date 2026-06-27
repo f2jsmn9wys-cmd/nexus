@@ -468,7 +468,18 @@ tickClock(); setInterval(tickClock, 30000);
  * TODOS
  * ============================================================ */
 const TODO_KEY = 'nexus_todos_v1';
-function getTodos(){ return lsGet(TODO_KEY, []); }
+// Todos are stamped with the day they were created. On every read we drop
+// anything not from today (and backfill old entries that predate this field
+// with "today" so nothing vanishes mid-update) — that's the daily reset.
+function getTodos(){
+  const tk = todayKey();
+  const raw = lsGet(TODO_KEY, []);
+  let touched = false;
+  raw.forEach(t => { if (!t.date) { t.date = tk; touched = true; } });
+  const todays = raw.filter(t => t.date === tk);
+  if (touched || todays.length !== raw.length) lsSet(TODO_KEY, todays);
+  return todays;
+}
 function setTodos(list){ lsSet(TODO_KEY, list); renderTodos(); }
 
 function renderTodos(){
@@ -479,10 +490,11 @@ function renderTodos(){
     { pri:'low', label:'Niedrig' },
   ];
   document.getElementById('todoCols').innerHTML = cols.map(c => {
-    const items = todos.filter(t => t.priority === c.pri);
+    // Done todos stay counted (for the progress bar) but drop out of the visible list.
+    const items = todos.filter(t => t.priority === c.pri && !t.done);
     const rows = items.length
-      ? items.map(t => '<div class="todoItem' + (t.done ? ' done' : '') + '">'
-          + '<input type="checkbox" data-act="toggle-todo" data-id="' + t.id + '"' + (t.done ? ' checked' : '') + ' />'
+      ? items.map(t => '<div class="todoItem">'
+          + '<input type="checkbox" data-act="toggle-todo" data-id="' + t.id + '" />'
           + '<span>' + esc(t.text) + '</span>'
           + '<span class="del" data-act="del-todo" data-id="' + t.id + '">✕</span></div>').join('')
       : '<p class="todoEmpty">Nichts hier — entspann dich.</p>';
@@ -504,7 +516,7 @@ document.getElementById('todoAddBtn').addEventListener('click', () => {
   if (!text) return;
   const priority = document.getElementById('todoPriority').value;
   const todos = getTodos();
-  todos.unshift({ id: uid(), text, priority, done:false });
+  todos.unshift({ id: uid(), text, priority, done:false, date: todayKey() });
   setTodos(todos);
   inp.value = ''; inp.focus();
 });
